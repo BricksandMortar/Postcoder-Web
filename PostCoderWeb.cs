@@ -53,7 +53,7 @@ namespace Rock.Address
                     location.GeocodeAttemptedDateTime.Value.CompareTo(RockDateTime.Now.AddSeconds(-30)) > 0 ||
                     reVerify
                 ) &&
-                location.Country == "GB" &&
+                //Need to: Cross reference which countries should not be accepted. (location.Country != "GB" || "US") &&
                 ( string.IsNullOrWhiteSpace(location.Street1) || string.IsNullOrWhiteSpace(location.Street2) ) )
             {
 
@@ -64,8 +64,8 @@ namespace Rock.Address
                 string inputAddress = string.Join(" ", addressParts.Where(s => !string.IsNullOrEmpty(s)));
 
                 //restsharp API request
-                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/addressgeo/UK/{1}",
-                                            inputKey, inputAddress));
+                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/addressgeo/{1}/{2}",
+                                            inputKey, location.country, inputAddress));
                 var request = new RestRequest(Method.GET);
                 request.RequestFormat = DataFormat.Json;
                 request.AddParameter("lines", "2");
