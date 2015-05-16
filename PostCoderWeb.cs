@@ -62,10 +62,17 @@ namespace Rock.Address
                 var addressParts = new string[] { location.Street1, location.Street2, location.City, location.PostalCode };
 
                 string inputAddress = string.Join(" ", addressParts.Where(s => !string.IsNullOrEmpty(s)));
-
+                if (location.country == "GB")
+                {
+                    string method = "addressgeo"
+                }
+                else 
+                {
+                    string method = "address"
+                }
                 //restsharp API request
-                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/addressgeo/{1}/{2}",
-                                            inputKey, location.country, inputAddress));
+                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/{1}}/{2}/{3}",
+                                            inputKey, method, location.country, inputAddress));
                 var request = new RestRequest(Method.GET);
                 request.RequestFormat = DataFormat.Json;
                 request.AddParameter("lines", "2");
@@ -86,8 +93,11 @@ namespace Rock.Address
                         location.State = address.county;
                         location.PostalCode = address.postcode;
                         location.StandardizedDateTime = RockDateTime.Now;
+                        if (method == "addressgeo")
+                        {
                         location.SetLocationPointFromLatLong(address.latitude, address.longitude);
                         location.GeocodedDateTime = RockDateTime.Now;
+                        }
                     }
                     else
                     {
