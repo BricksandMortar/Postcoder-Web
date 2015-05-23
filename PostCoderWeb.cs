@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Collections.Generic;
+using System.Configuration;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.IO;
@@ -11,6 +12,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.ServiceModel.Web;
 using System.Web;
+
 using Rock;
 using Rock.Attribute;
 using Rock.Web.UI;
@@ -63,6 +65,15 @@ namespace Rock.Address
 
                 string inputAddress = string.Join(" ", addressParts.Where(s => !string.IsNullOrEmpty(s)));
                 if (location.country == "GB")
+                //Create Identifier 
+                string identifier = string.Empty;
+                var version = new Version( Rock.VersionInfo.VersionInfo.GetRockSemanticVersionNumber() );
+                object catalog = string.Empty;
+                System.Data.Odbc.OdbcConnectionStringBuilder builder = new System.Data.Odbc.OdbcConnectionStringBuilder(ConfigurationManager.ConnectionStrings["RockContext"].ConnectionString); 
+                if ( builder.TryGetValue("initial catalog", out catalog) )
+                {
+                   identifier = string.Format("Rock:{0} DB:{1}", version, catalog);
+                }
                 {
                     string method = "addressgeo"
                 }
@@ -76,6 +87,7 @@ namespace Rock.Address
                 var request = new RestRequest(Method.GET);
                 request.RequestFormat = DataFormat.Json;
                 request.AddParameter("lines", "2");
+                request.AddParameter("identifier", identifier);
                 request.AddHeader("accept", "application/json");
                 var response = client.Execute(request);
 
