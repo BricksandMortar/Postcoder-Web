@@ -29,6 +29,7 @@ namespace Rock.Address
     [Export(typeof(VerificationComponent))]
     [ExportMetadata("ComponentName", "Postcoder Web")]
     [TextField("API Key", "Your Postcoder Web API Key", true, "", "", 2)]
+    [TextField("Country Codes", "A list of countries that Postcoder Web should verify. Country code values separated by commas. (See https://developers.alliescomputing.com/postcoder-web-api/address-lookup/international-addresses)", true, "GB,US", "", 3)]
     public class PostcoderWeb : VerificationComponent
     {
         /// <summary>
@@ -46,6 +47,9 @@ namespace Rock.Address
             bool verified = false;
             result = string.Empty;
 
+            string validcountries = GetAttributeValue("CountryCodes");
+            string[] validcountryarray = validcountries.Split(',');
+
             // Only verify if location is valid, has not been locked, and 
             // has either never been attempted or last attempt was in last 30 secs (prev active service failed) or reverifying
             if ( location != null &&
@@ -55,16 +59,16 @@ namespace Rock.Address
                     location.GeocodeAttemptedDateTime.Value.CompareTo(RockDateTime.Now.AddSeconds(-30)) > 0 ||
                     reVerify
                 ) &&
-                //Need to: Cross reference which countries should not be accepted. (location.Country != "GB" || "US") &&
+                !string.IsNullOrWhiteSpace(validcountries) &&
+                validcountryarray.Contains(location.Country) &&
                 ( string.IsNullOrWhiteSpace(location.Street1) || string.IsNullOrWhiteSpace(location.Street2) ) )
             {
 
                 string inputKey = GetAttributeValue("APIKey");
                 //Create request that encodes correctly
-                var addressParts = new string[] { location.Street1, location.Street2, location.City, location.PostalCode };
-
+                var addressParts = new string[] { location.Street1, location.Street2, location.City, location.State, location.PostalCode};
                 string inputAddress = string.Join(" ", addressParts.Where(s => !string.IsNullOrEmpty(s)));
-                if (location.country == "GB")
+
                 //Create Identifier 
                 string identifier = string.Empty;
                 var version = new Version( Rock.VersionInfo.VersionInfo.GetRockSemanticVersionNumber() );
@@ -74,19 +78,29 @@ namespace Rock.Address
                 {
                    identifier = string.Format("Rock:{0} DB:{1}", version, catalog);
                 }
+                
+                //Use correct endpoint
+                string method = string.Empty;
+                int lines = 0;
+                string country = location.Country;
+                if (location.Country == "GB")
                 {
-                    string method = "addressgeo"
+                    method = "addressgeo";
+                    lines = 2;
+                    country = "UK";
                 }
                 else 
                 {
-                    string method = "address"
+                    method = "address";
+                    lines = 4;
                 }
-                //restsharp API request
-                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/{1}}/{2}/{3}",
-                                            inputKey, method, location.country, inputAddress));
+
+                //Restsharp API request
+                var client = new RestClient(String.Format("http://ws.postcoder.com/pcw/{0}/{1}/{2}/{3}",
+                                            inputKey, method, country, inputAddress));
                 var request = new RestRequest(Method.GET);
                 request.RequestFormat = DataFormat.Json;
-                request.AddParameter("lines", "2");
+                request.AddParameter("lines", lines);
                 request.AddParameter("identifier", identifier);
                 request.AddHeader("accept", "application/json");
                 var response = client.Execute(request);
@@ -99,8 +113,26 @@ namespace Rock.Address
                         var address = addressresponse.FirstOrDefault();
                         verified = true;
                         result = string.Format("UDPRN: {0}", address.uniquedeliverypointreferencenumber);
-                        location.Street1 = address.addressline1;
-                        location.Street2 = address.addressline2;
+                        if ( location.Country == "GB" )
+                        {
+                            location.Street1 = address.addressline1;
+                            location.Street2 = address.addressline2;
+                        }
+                        else
+                        {
+                            var lineparts = new string[] { address.premise, address.street, address.pobox};
+                            string inputline = string.Join(" ", lineparts.Where(s => !string.IsNullOrEmpty(s)));
+                            if (!string.IsNullOrWhiteSpace(address.organisation))
+                            {
+                                location.Street1 = address.organisation;
+                                location.Street2 = inputline;
+                            }
+                            else
+                            {
+                                location.Street1 = inputline;
+                            }
+                            
+                        }
                         location.City = address.posttown;
                         location.State = address.county;
                         location.PostalCode = address.postcode;
@@ -143,6 +175,7 @@ namespace Rock.Address
         public string summaryline { get; set; }
         public string organisation { get; set; }
         public string buildingname { get; set; }
+        public string pobox { get; set; }
         public string uniquedeliverypointreferencenumber { get; set; }
         public string premise { get; set; }
         public string street { get; set; }
