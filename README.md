@@ -1,4 +1,6 @@
-# Rock Postcoder Web Location Service
+# Unsupported: Rock Postcoder Web Location Service
+
+## As of 2016-09-30 this is an unsupported plugin
 
 ### Intro
 This is a location service for [Rock](http://rockrms.com) that looks-up, standardises, and geocodes UK addresses and looks-up and standardises international addresses using the [Postcoder Web](https://www.alliescomputing.com/postcoder/address-lookup) API.
